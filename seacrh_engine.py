@@ -1,7 +1,12 @@
+#!/usr/bin/python
 import glob
-import pathlib
+from pathlib import Path
 import logging
-from typing import Tuple, List, Iterator
+import cProfile
+import pstats
+import argparse
+
+from typing import Tuple, List, Iterator, Optional
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -14,13 +19,12 @@ def direct_search(
         file_path_iter: Iterator,
         search_param: str
 ) -> Tuple[int, List[str]]:
-
-    tc_id = []
+    tc_id = ["****-****"] * 200  # This is how you reserve more place in memory, increase efficiency.
     counter = 0
     for file_path in file_path_iter:
         p_id = None
         search_flag = False
-        file_text = pathlib.Path(file_path).read_text().splitlines()
+        file_text = Path(file_path).read_text().splitlines()
         for line in file_text:
 
             if line.find("Polarion ID:") != -1:
@@ -32,47 +36,73 @@ def direct_search(
                 continue
 
             if p_id is not None and search_flag is not False:
-                counter += 1
-                tc_id.append(p_id)
+                tc_id[counter] = p_id
                 break
 
-    return counter, tc_id
+    all_ids = list(set(tc_id))
+    all_ids.remove("****-****")
+
+    return all_ids
 
 
-# tc_id = []
-# count = 0
-# for file_path in all_test_files:
-#     p_id = None
-#     seach_flag = False
-#     with open(file_path, "r") as file:
-#         for line in file:
-#             if p_id != None and seach_flag == True:
-#                 count += 1
-#                 tc_id.append(p_id)
-#                 break
-#             else:
-#                 if line.find("Polarion ID:") != -1 and p_id == None:
-#                     p_id = line.split()[-1]
-#                 if line.find(searching_text) != -1:
-#                     seach_flag = True
-#
-# stop_time = time.time()
+def direct_search_original(
+        file_path_iter: Iterator,
+        search_param: str
+) -> Tuple[int, List[str]]:
+    tc_id = []
+    counter = 0
+    for file_path in file_path_iter:
+        p_id = None
+        search_flag = False
+        file_text = Path(file_path).read_text().splitlines()
+        for line in file_text:
+
+            if line.find("Polarion ID:") != -1:
+                p_id = line.split(":")[-1].strip()
+                continue
+
+            if line.find(search_param) != -1:
+                search_flag = True
+                continue
+
+            if p_id is not None and search_flag is not False:
+                tc_id.append(p_id)
+                counter += 1
+                break
+
+    return tc_id
+
 
 if __name__ == '__main__':
-    all_test_files = glob.iglob(
-        pathname="C:/Users/dovydas.menkevicius/data/test_cases/**/test_*.py",
-        recursive=True
-    )
+    parser = argparse.ArgumentParser()
 
-    searching_text = "cleaning.start_cleaning("
+    parser.add_argument("-p", "--path", type=str, nargs=1, help="Path to the folder")
+    parser.add_argument("-sp", "--search_param", type=str, nargs=1, help="Search pattern")
 
-    count, tc_ids = direct_search(
-        file_path_iter=all_test_files,
-        search_param=searching_text
-    )
+    args = parser.parse_args()
 
-    logging.info(f"Searh results for: {searching_text}")
-    logging.info(f"Used in test cases {count}:")
-    logging.info(f"{tc_ids}")
-    # logging.info(f"Time taken : {stop_time - start_time} s")
+    with cProfile.Profile() as profile:
+        all_test_files = glob.iglob(
+            pathname=f"{args.path}/test_cases/**/test_*.py",
+            recursive=True
+        )
 
+        searching_text = args.search_param
+
+        tc_ids = direct_search_original(
+            file_path_iter=all_test_files,
+            search_param=searching_text
+        )
+
+        # logging.info(f"Searh results for: {searching_text}")
+        # logging.info(f"Used in test cases {count}:")
+        # logging.info(f"{tc_ids}")
+
+        # count_o, tc_ids_o = direct_search(
+        #    file_path_iter=all_test_files,
+        #    search_param=searching_text
+        # )
+
+    results = pstats.Stats(profile)
+    results.sort_stats(pstats.SortKey.TIME)
+    results.print_stats()
