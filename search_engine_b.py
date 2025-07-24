@@ -5,7 +5,7 @@ from seacrh_engine import direct_search_original
 
 
 def get_methods_names(
-        framework_files: Iterator,
+        framework_files: List[str],
         search_param
 ) -> List[str]:
     found_methods = []
@@ -19,86 +19,78 @@ def get_methods_names(
                 file_text_modified = file_text[0:line_number]
                 file_text_modified.reverse()
                 for reversed_line in file_text_modified:
-                   if reversed_line.startswith("def"):
+                    if reversed_line.startswith("def"):
                         method = reversed_line.removeprefix("def").strip().split("(")[0]
-                        found_methods.append(method +"(")
+                        found_methods.append(method + "(")
                         continue
-                        
+
     return found_methods
 
 
 def in_direct_search(
-        #test_pool_path: Iterator,
-        framework_files: Iterator,
-        search_param: str,
+        # test_pool_path: Iterator,
+        framework_files: List[str],
+        all_methods: Set[str],
         depth: int = 1
 ) -> Optional[Set[str]]:
-    
     if depth > MAX_DEPTH:
         return all_methods
-    print(f"Depth - {depth}")
-    
-    
-    
 
-   
-    all_methods = get_methods_names(framework_files=framework_documents,
-                                        search_param=search_param)
-    
-    print(all_methods)
-   
-   
-    for method in all_methods: 
-        print(method)
-        search_result = in_direct_search(
-            #test_pool_path=all_test_files,
-            framework_files=framework_documents,
-            search_param=method,
-            depth = depth + 1,
-            #all_functions=all_methods
-           )
-        print(search_result)
-        if search_result:
-            all_methods.extend(search_result)
- 
-    return all_methods
-        
-        
-    
-   
-    
-    
-    
-        
-                                    
-    
-    #polarion_ids = set()
-    #tc_ids = direct_search_original(
+    print(f"Depth - {depth}")
+
+    found_methods = set()
+
+    for method in all_methods:
+        all_methods = get_methods_names(framework_files=framework_files,
+                                        search_param=method)
+        if all_methods is not None:
+            found_methods.update(all_methods)
+
+    print(found_methods)
+
+    search_results = in_direct_search(
+        # test_pool_path=all_test_files,
+        framework_files=framework_files,
+        all_methods=found_methods,
+        depth=depth + 1
+    )
+    # print(search_result)
+    # if search_result:
+    #     found_methods.extend(search_result)
+    if found_methods is not None:
+        found_methods.update(search_results)
+    return found_methods
+
+    # polarion_ids = set()
+    # tc_ids = direct_search_original(
     #        file_path_iter=test_pool_path,
     #        search_param=search_param
     #   )
-    #if tc_ids is not []:
+    # if tc_ids is not []:
     #    polarion_ids.update(tc_ids)
 
 
 if __name__ == '__main__':
     MAX_DEPTH = 6
-    all_test_files = glob.iglob(
+    all_test_files = glob.glob(
         pathname="C:/Users/dovydas.menkevicius/data/test_cases/**/test_*.py",
         recursive=True
     )
 
-    framework_documents = glob.iglob(
+    framework_documents = glob.glob(
         pathname="C:/Users/dovydas.menkevicius/data/**/*.py",
         recursive=True
     )
 
-    print(in_direct_search(
-        #test_pool_path=all_test_files,
+    methods = in_direct_search(
         framework_files=framework_documents,
-        #search_param='connect_shunts('
-        search_param="reconnect_shunts("
-        #search_param='handle_shunt_reconnecting_request('
-    ))
-    
-    
+        all_methods={"reconnect_shunts("})
+
+    tc_ids = []
+
+    for method in methods:
+        tc_id = direct_search_original(
+            file_path_iter=all_test_files,
+            search_param=method
+        )
+

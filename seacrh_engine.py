@@ -16,7 +16,7 @@ logging.basicConfig(
 
 
 def direct_search(
-        file_path_iter: Iterator,
+        file_path_iter: List[str],
         search_param: str
 ) -> Tuple[int, List[str]]:
     tc_id = ["****-****"] * 200  # This is how you reserve more place in memory, increase efficiency.
@@ -46,7 +46,7 @@ def direct_search(
 
 
 def direct_search_original(
-        file_path_iter: Iterator,
+        file_path_iter: List[str],
         search_param: str
 ) -> Tuple[int, List[str]]:
     tc_id = []
